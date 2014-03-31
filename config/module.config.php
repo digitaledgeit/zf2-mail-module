@@ -11,6 +11,5 @@ return [
 
 
 		],
-		'invokables' => ['testtransport' => 'Zend\Mail\Transport\Sendmail']
 	],
 ];
