@@ -2,17 +2,32 @@
 
 A module simplifying use of ZF2 Mail.
 
+## Installation
+
+Add the module to your `composer.json` file and run `composer install`:
+
+    "digitaledgeit/zf2-mail-module": "dev-master"
+
 ## Configuration
+
+Add the module to the `modules` key in your `config/application.config.php` file:
+
+	'modules' => [
+		'DeitMailModule',
+	],
+
+Add the configuration to your `local.php` and `module.config.php`:
 
 	'deit_mail' => [
 
-		'transport' => [                    //an array containing type and options keys or a string containing a service name
+		//an array containing type and options keys or a string containing a service name
+		'transport' => [
 			'type'      => '',              //null, file, sendmail or smtp
 			'options'   => [                //see the transport options for selected type at http://framework.zend.com/manual/2.1/en/modules/zend.mail.introduction.html
 			],
 		],
 
-		'renderer' => 'ViewRenderer'        //a string containing a service name
+		'renderer'  => 'ViewRenderer'        //a string containing a service name
 	],
 
 ## Sending mail
