@@ -41,6 +41,18 @@ Add the configuration to your `local.php` and `module.config.php`:
 			'to'            => 'fred@example.com',
 			'from'          => 'wilma@example.com',
 			'subject'       => 'A test message from my app',
+			'attachments'   => [
+                [
+                    'type'      => 'text/html',
+                    'name'      => 'test1.html',
+                    'content'   => '<html><head><title>Test HTML Page</title></head><body><h1>Test HTML Page</h1></body></html>'
+                ],
+                [
+                    'type'      => 'text/html',
+                    'name'      => 'test2.html',
+                    'content'   => './path/to/the-file.html'
+                ]
+            ]
 		],
 		[
 			'text/plain'    => 'email/hello-text',

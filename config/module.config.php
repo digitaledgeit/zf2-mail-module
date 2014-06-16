@@ -8,8 +8,6 @@ return [
 			'deit_mail_transport'   => 'DeitMailModule\Mail\TransportFactory',
 			'deit_mail_renderer'    => 'DeitMailModule\Mail\RendererFactory',
 			'deit_mail_service'     => 'DeitMailModule\Mail\ServiceFactory',
-
-
 		],
 	],
 ];

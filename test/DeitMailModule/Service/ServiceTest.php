@@ -42,5 +42,25 @@ class MailServiceTest extends \PHPUnit_Framework_TestCase {
 
 	}
 
+	/**
+	 * Tests the send
+	 */
+	public function testSendMessageWithAttachments() {
+
+		$this->service->send([
+			'to'            => 'info@pcosync.com',
+			'from'          => 'jameslnewell@gmail.com',
+			'subject'       => 'Test email',
+			'attachments'   => [
+				[
+					'type'      => 'text/html',
+					'name'      => 'test.html',
+					'content'   => '<html><head><title>Test HTML Page</title></head><body><h1>Test HTML Page</h1></body></html>'
+				]
+			]
+		]);
+
+	}
+
 }
  

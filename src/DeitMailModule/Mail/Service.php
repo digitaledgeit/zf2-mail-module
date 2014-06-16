@@ -2,7 +2,7 @@
 
 namespace DeitMailModule\Mail;
 use Zend\Mail\Transport\TransportInterface;
-use Zend\Mail\Message as Message;
+use Zend\Mail\Message as MailMessage;
 use Zend\Mime\Part as MimePart;
 use Zend\Mime\Mime as Mime;
 use Zend\Mime\Message as MimeMessage;
@@ -93,10 +93,11 @@ class Service {
 	/**
 	 * Creates a mail message
 	 * @param   string[]    $params
-	 * @return  Message
+	 * @return  MailMessage
 	 */
 	public function createMessage(array $params) {
-		$mailMessage = new Message;
+		$mailMessage = new MailMessage();
+		$mimeMessage = new MimeMessage();
 
 		if (isset($params['to'])) {
 			$mailMessage->addTo($params['to']);
@@ -110,87 +111,38 @@ class Service {
 			$mailMessage->setSubject($params['subject']);
 		}
 
+		if (isset($params['attachments'])) {
+			foreach ($params['attachments'] as $attachment) {
+
+				if (is_file($attachment['content'])) {
+					$content = fopen($attachment['content'], 'r');
+				} else {
+					$content = $attachment['content'];
+				}
+
+				//create the attachment
+				$mimeAttachment = new MimePart($content);
+				$mimeAttachment->type           = $attachment['type'];
+				$mimeAttachment->filename       = $attachment['name'];
+				$mimeAttachment->disposition    = Mime::DISPOSITION_ATTACHMENT;
+
+				$mimeMessage->addPart($mimeAttachment);
+			}
+		}
+
+		$mailMessage->setBody($mimeMessage);
+
 		return $mailMessage;
 	}
 
 	/**
 	 * Sends a simple message via email
-	 * @param   Message     $message
+	 * @param   MailMessage     $message
 	 * @return  $this
 	 */
-	public function sendMessage(Message $message) {
+	public function sendMessage(MailMessage $message) {
 		$this->getTransport()->send($message);
 		return $this;
-	}
-
-	/**
-	 * Sends a text message via email
-	 * @param   string[]    $message
-	 * @param   string      $template
-	 * @param   string[]    $variables
-	 * @return  $this
-	 */
-	public function sendTextMessage(array $message, $template, array $variables = [], $attachments=[]) {
-
-		//render the template
-		$viewContent = $this->renderTemplate($template, $variables);
-
-		//create the message
-		$mailMessage = $this->createMessage($message);
-		$mimeMessage = new MimeMessage();
-		$mimePart = new MimePart($viewContent);
-		$mimePart->type = 'text/plain';
-		$mimeMessage->addPart($mimePart);
-		foreach ($attachments as $key =>$attachment) {
-			$fileContents = fopen($attachment['file'], 'r');
-			$mimeAttachment = new MimePart($fileContents);
-			$mimeAttachment->type = $attachment['type'];
-			$mimeAttachment->filename = $attachment['desiredName'];
-			$mimeAttachment->disposition = Mime::DISPOSITION_ATTACHMENT;
-
-			$mimeMessage->addPart($mimeAttachment);
-		}
-		$mailMessage
-			->setBody($mimeMessage)
-		;
-
-		//send the message
-		return $this->sendMessage($mailMessage);
-	}
-
-	/**
-	 * Sends a HTML message via email
-	 * @param   string[]    $message
-	 * @param   string      $template
-	 * @param   string[]    $variables
-	 * @return  $this
-	 */
-	public function sendHtmlMessage(array $message, $template, array $variables = [], $attachments=[]) {
-
-		//render the template
-		$viewContent = $this->renderTemplate($template, $variables);
-
-		//create the message
-		$mailMessage = $this->createMessage($message);
-		$mimeMessage = new MimeMessage();
-		$mimePart = new MimePart($viewContent);
-		$mimePart->type = 'text/html';
-		$mimeMessage->addPart($mimePart);
-		foreach ($attachments as $key =>$attachment) {
-			$fileContents = fopen($attachment['file'], 'r');
-			$mimeAttachment = new MimePart($fileContents);
-			$mimeAttachment->type = $attachment['type'];
-			$mimeAttachment->filename = $attachment['desiredName'];
-			$mimeAttachment->disposition = Mime::DISPOSITION_ATTACHMENT;
-
-			$mimeMessage->addPart($mimeAttachment);
-		}
-		$mailMessage
-			->setBody($mimeMessage)
-		;
-
-		//send the message
-		return $this->sendMessage($mailMessage);
 	}
 
 	/**
@@ -200,40 +152,73 @@ class Service {
 	 * @param   string[]    $variables
 	 * @return  $this
 	 */
-	public function sendMixedMessage(array $message, array $templates, array $variables = [], $attachments=[]) {
+	public function sendMixedMessage(array $message, array $templates, array $variables = []) {
 
 		//create the message
 		$mailMessage = $this->createMessage($message);
-		$mimeMessage = new MimeMessage();
+
+		//render the templates
+		$contentMimeMessage = new MimeMessage();
 		foreach ($templates as $mimeType => $template) {
 
 			//render the template
 			$viewContent = $this->renderTemplate($template, $variables);
 
+			//add the template to the message
 			$mimePart = new MimePart($viewContent);
 			$mimePart->type = $mimeType;
-			$mimeMessage->addPart($mimePart);
+			$contentMimeMessage->addPart($mimePart);
 
 		}
-		$a = 0;
-		foreach ($attachments as $key =>$attachment) {
-			echo $a = $a+1;
-			$fileContents = fopen($attachment['file'], 'r');
-			$mimeAttachment = new MimePart($fileContents);
-			$mimeAttachment->type = $attachment['type'];
-			$mimeAttachment->filename = $attachment['desiredName'];
-			$mimeAttachment->disposition = Mime::DISPOSITION_ATTACHMENT;
 
-			$mimeMessage->addPart($mimeAttachment);
+		//combine the alternative content into a single mime part
+		if ($contentMimeMessage->isMultiPart()) {
+			$contentMimePart        = new MimePart($contentMimeMessage->generateMessage());
+			$contentMimePart->type  = 'multipart/alternative;'.PHP_EOL.' boundary="'.$contentMimeMessage->getMime()->boundary().'"';
+			$contentMimeParts       = [$contentMimePart];
+		} else {
+			$contentMimeParts = $contentMimeMessage->getParts();
 		}
 
-		$mailMessage
-			->setBody($mimeMessage)
-			->getHeaders()->get('content-type')->setType('multipart/alternative') //let the client choose which part to display
-		;
+		//order the content before any attachments
+		$finalMimeMessage = new MimeMessage();
+		$finalMimeMessage->setParts(array_merge(
+			$contentMimeParts,
+			$mailMessage->getBody()->getParts()
+		));
+		$mailMessage->setBody($finalMimeMessage);
+
+		//let the client choose which part to display
+		if ($mailMessage->getBody()->isMultiPart()) {
+			$mailMessage
+				->getHeaders()->get('content-type')->setType('multipart/mixed')
+			;
+		}
 
 		//send the message
 		return $this->sendMessage($mailMessage);
+	}
+
+	/**
+	 * Sends a text message via email
+	 * @param   string[]    $message
+	 * @param   string      $template
+	 * @param   string[]    $variables
+	 * @return  $this
+	 */
+	public function sendTextMessage(array $message, $template, array $variables = []) {
+		return $this->sendMixedMessage($message,['text/plain' => $template], $variables);
+	}
+
+	/**
+	 * Sends a HTML message via email
+	 * @param   string[]    $message
+	 * @param   string      $template
+	 * @param   string[]    $variables
+	 * @return  $this
+	 */
+	public function sendHtmlMessage(array $message, $template, array $variables = []) {
+		return $this->sendMixedMessage($message,['text/html' => $template], $variables);
 	}
 
 }
